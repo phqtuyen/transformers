@@ -311,22 +311,26 @@ def evaluate(args, strategy, model, tokenizer, labels, pad_token_label_id, mode)
     preds = None
     num_eval_steps = math.ceil(size / eval_batch_size)
     master = master_bar(range(1))
-    eval_iterator = progress_bar(eval_dataset, total=num_eval_steps, parent=master, display=args["n_device"] > 1)
+    print(eval_dataset)
+    print(num_eval_steps)
+    print(master)
+    print(args["n_device"])
+    # eval_iterator = progress_bar(eval_dataset, total=num_eval_steps, parent=master, display=args["n_device"] > 1)
     loss_fct = tf.keras.losses.SparseCategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
     loss = 0.0
 
     logging.info("***** Running evaluation *****")
     logging.info("  Num examples = %d", size)
     logging.info("  Batch size = %d", eval_batch_size)
-
-    for eval_features, eval_labels in eval_iterator:
+    times = []
+    for eval_features, eval_labels in eval_dataset:
         inputs = {"attention_mask": eval_features["input_mask"], "training": False}
 
         if args["model_type"] != "distilbert":
             inputs["token_type_ids"] = (
                 eval_features["segment_ids"] if args["model_type"] in ["bert", "xlnet"] else None
             )
-
+        start = datetime.datetime.now()
         with strategy.scope():
             logits = model(eval_features["input_ids"], **inputs)[0]
             tmp_logits = tf.reshape(logits, (-1, len(labels) + 1))
@@ -343,7 +347,8 @@ def evaluate(args, strategy, model, tokenizer, labels, pad_token_label_id, mode)
         else:
             preds = np.append(preds, logits.numpy(), axis=0)
             label_ids = np.append(label_ids, eval_labels.numpy(), axis=0)
-
+        times.append((datetime.datetime.now() - start).seconds)
+    print("Average Inference time: ", sum(times) / len(times))
     preds = np.argmax(preds, axis=2)
     y_pred = [[] for _ in range(label_ids.shape[0])]
     y_true = [[] for _ in range(label_ids.shape[0])]
