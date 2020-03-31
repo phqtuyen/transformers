@@ -348,6 +348,7 @@ def evaluate(args, strategy, model, tokenizer, labels, pad_token_label_id, mode)
             preds = np.append(preds, logits.numpy(), axis=0)
             label_ids = np.append(label_ids, eval_labels.numpy(), axis=0)
         times.append((datetime.datetime.now() - start).seconds)
+        print(times)
     print("Average Inference time: ", sum(times) / len(times))
     preds = np.argmax(preds, axis=2)
     y_pred = [[] for _ in range(label_ids.shape[0])]
